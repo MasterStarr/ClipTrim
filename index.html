@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ClipTrim</title>
+    <meta name="description" content="Trim and shrink gaming clips to fit Discord, right in your browser." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✂️</text></svg>" />
+    <link rel="stylesheet" href="./src/style.css" />
+    <script type="module" src="./src/main.js"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>ClipTrim</h1>
+        <p>Trim a clip, squeeze it under a size cap, download. Runs entirely in your browser &mdash; nothing is uploaded.</p>
+      </header>
+
+      <section id="drop" class="drop" tabindex="0">
+        <input type="file" id="file" accept="video/*,.mkv" hidden />
+        <p><strong>Drop a clip here</strong> or click to choose one</p>
+        <p class="hint">MP4 / MKV / MOV / WebM &middot; H.264, HEVC or AV1</p>
+      </section>
+
+      <p id="load-error" class="error" hidden></p>
+
+      <section id="editor" hidden>
+        <div class="file-row">
+          <span id="file-name" class="file-name"></span>
+          <span id="file-info" class="muted"></span>
+          <button type="button" id="change">Change clip</button>
+        </div>
+
+        <video id="video" controls playsinline preload="auto"></video>
+        <p id="preview-error" class="warn" hidden>
+          This browser can't preview this clip, but exporting may still work. Use the start/end fields below.
+        </p>
+
+        <div id="timeline" class="timeline" title="Click to seek, drag the handles to trim">
+          <div id="sel" class="sel"></div>
+          <div id="h-start" class="handle" data-handle="start"></div>
+          <div id="h-end" class="handle" data-handle="end"></div>
+          <div id="head" class="head"></div>
+        </div>
+
+        <div class="row">
+          <label>Start <input id="start" type="number" min="0" step="0.01" /></label>
+          <button type="button" id="set-start">Set start <kbd>I</kbd></button>
+          <label>End <input id="end" type="number" min="0" step="0.01" /></label>
+          <button type="button" id="set-end">Set end <kbd>O</kbd></button>
+          <span id="sel-len" class="muted"></span>
+          <span class="spacer"></span>
+          <button type="button" id="play-sel">Play selection</button>
+          <button type="button" id="grab">Save frame</button>
+        </div>
+
+        <div class="row settings">
+          <label>
+            Size cap
+            <select id="target">
+              <option value="20" selected>20 MB (Discord)</option>
+              <option value="50">50 MB (Nitro Basic)</option>
+              <option value="500">500 MB (Nitro)</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </label>
+          <label id="custom-wrap" hidden>
+            MB <input id="custom-mb" type="number" min="1" max="500" step="0.5" value="20" />
+          </label>
+          <label>
+            Max resolution
+            <select id="max-height">
+              <option value="4320">Source</option>
+              <option value="1080">1080p</option>
+              <option value="720" selected>720p</option>
+              <option value="480">480p</option>
+            </select>
+          </label>
+          <label>
+            Max FPS
+            <select id="max-fps">
+              <option value="60" selected>60</option>
+              <option value="30">30</option>
+            </select>
+          </label>
+          <label>
+            Audio
+            <select id="audio">
+              <option value="128">128 kbps</option>
+              <option value="96" selected>96 kbps</option>
+              <option value="64">64 kbps</option>
+              <option value="0">None</option>
+            </select>
+          </label>
+          <label class="check" title="When the budget is tight, halve the framerate before dropping resolution further">
+            <input type="checkbox" id="fps-drop" /> Allow FPS drop
+          </label>
+          <label class="check" title="If no resize is needed and the clip already fits, copy it untouched. The start snaps back to the nearest keyframe.">
+            <input type="checkbox" id="allow-copy" checked /> Skip re-encode if it fits
+          </label>
+        </div>
+
+        <p id="plan" class="plan"></p>
+
+        <div class="row">
+          <button type="button" id="export" class="primary">Export</button>
+          <button type="button" id="cancel" hidden>Cancel</button>
+          <progress id="progress" max="1" value="0" hidden></progress>
+        </div>
+        <p id="status" class="status" aria-live="polite"></p>
+        <div id="result" class="result" hidden>
+          <a id="download" class="primary" download>Download</a>
+          <span id="result-info"></span>
+        </div>
+      </section>
+
+      <footer class="muted">Powered by WebCodecs + <a href="https://mediabunny.dev/">Mediabunny</a>. Works best in Chrome or Edge.</footer>
+    </main>
+  </body>
+</html>
