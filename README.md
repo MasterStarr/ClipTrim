@@ -1,5 +1,7 @@
 # ClipTrim
 
+Available at https://masterstarr.github.io/ClipTrim/
+
 Trim a gaming clip and squeeze it under a size cap (Discord's 20 MB by default), entirely in the browser. Nothing is uploaded — decoding and encoding run locally through WebCodecs (hardware accelerated) via [Mediabunny](https://mediabunny.dev/).
 
 - Drag the timeline handles, or press **I** / **O** to set start/end at the playhead
