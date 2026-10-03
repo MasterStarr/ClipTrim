@@ -1,5 +1,10 @@
-import { ConversionCanceledError, exportClip, probe } from './encode.js';
+import { CODEC_NAMES, ConversionCanceledError, detectAv1Hardware, exportClip, probe } from './encode.js';
 import { formatMB, planEncode } from './plan.js';
+
+// Flip once AV1 playback on Discord checks out: GPUs that can encode AV1 then
+// get it by default (a choice the viewer made on the dropdown still wins).
+const AV1_DEFAULT_ON_HARDWARE = false;
+const CODEC_KEY = 'cliptrim.codec';
 
 const $ = (sel) => document.querySelector(sel);
 const els = {
@@ -33,6 +38,7 @@ const els = {
   fpsDrop: $('#fps-drop'),
   lockRes: $('#lock-res'),
   resLabel: $('#res-label'),
+  codec: $('#codec'),
   allowCopy: $('#allow-copy'),
   plan: $('#plan'),
   export: $('#export'),
@@ -229,9 +235,33 @@ els.grab.addEventListener('click', () => {
 
 // --- settings + plan -------------------------------------------------------
 
-for (const el of [els.target, els.customMb, els.maxHeight, els.maxFps, els.audio, els.fpsDrop, els.lockRes]) {
+for (const el of [els.target, els.customMb, els.maxHeight, els.maxFps, els.audio, els.fpsDrop, els.lockRes, els.codec]) {
   el.addEventListener('change', render);
 }
+els.codec.addEventListener('change', () => {
+  try {
+    localStorage.setItem(CODEC_KEY, els.codec.value);
+  } catch {}
+});
+
+detectAv1Hardware().then((hasAv1) => {
+  const av1 = els.codec.querySelector('option[value="av1"]');
+  av1.disabled = !hasAv1;
+  // Firefox doesn't expose hardware AV1 encoding even on GPUs that have it, so
+  // outside Chromium the browser, not the GPU, is the likely culprit.
+  const isChromium = !!navigator.userAgentData?.brands?.some((b) => b.brand === 'Chromium');
+  av1.textContent = hasAv1
+    ? 'AV1 (smaller, newer devices)'
+    : isChromium
+      ? 'AV1 (needs a GPU with AV1 encoding)'
+      : 'AV1 (GPU encoding needs Chrome or Edge)';
+  let saved = null;
+  try {
+    saved = localStorage.getItem(CODEC_KEY);
+  } catch {}
+  if (hasAv1 && (saved === 'av1' || (saved === null && AV1_DEFAULT_ON_HARDWARE))) els.codec.value = 'av1';
+  render();
+});
 els.lockRes.addEventListener('change', () => {
   els.resLabel.textContent = els.lockRes.checked ? 'Resolution' : 'Max resolution';
 });
@@ -257,6 +287,7 @@ function currentPlan() {
     audioKbps: Number(els.audio.value),
     allowFpsDrop: els.fpsDrop.checked,
     lockResolution: els.lockRes.checked,
+    codec: els.codec.value,
   });
 }
 
@@ -282,7 +313,7 @@ function render() {
   els.plan.className = plan.belowFloor ? 'plan warn' : 'plan';
   els.plan.textContent =
     `${info.width}x${info.height}@${Math.round(info.fps)} → ${plan.width}x${plan.height}@${Math.round(plan.fps)}` +
-    ` · ${plan.videoKbps.toLocaleString()} kbps video` +
+    ` · ${plan.videoKbps.toLocaleString()} kbps ${CODEC_NAMES[plan.codec]}` +
     (plan.audioKbps ? ` + ${plan.audioKbps} kbps audio` : ', no audio') +
     ` · ${fmtTime(state.end - state.start)}` +
     (plan.belowFloor ? ' · low bitrate for this resolution, expect blocky motion' : '');
@@ -324,7 +355,9 @@ els.export.addEventListener('click', async () => {
     els.resultInfo.append(
       span(`${formatMB(res.blob.size)}`, 'fits'),
       ` (${Math.round((100 * res.blob.size) / p.targetBytes)}% of cap) · `,
-      res.copied ? 'copied without re-encoding' : `${p.width}x${p.height}@${Math.round(p.fps)}, ${p.videoKbps} kbps`,
+      res.copied
+        ? 'copied without re-encoding'
+        : `${CODEC_NAMES[p.codec]} ${p.width}x${p.height}@${Math.round(p.fps)}, ${p.videoKbps} kbps`,
       ` · took ${secs}s`,
     );
     els.status.textContent = res.lostAudio ? "Done, but the audio couldn't be converted and was dropped." : 'Done.';
@@ -374,7 +407,7 @@ function baseName(name) {
 }
 
 function codecName(codec) {
-  return { avc: 'H.264', hevc: 'HEVC', av1: 'AV1', vp9: 'VP9', vp8: 'VP8' }[codec] ?? codec ?? 'unknown';
+  return CODEC_NAMES[codec] ?? codec ?? 'unknown';
 }
 
 function span(text, cls) {

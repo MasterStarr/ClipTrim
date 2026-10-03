@@ -5,9 +5,10 @@
 const MB = 1024 * 1024; // binary, matching how Discord counts
 
 // Bits per pixel per frame below which fast camera motion starts smearing.
-// Movement-shooter footage is about as hostile as encoding gets, so this sits
-// above the usual 0.05 rule of thumb.
-export const MIN_BPP = 0.065;
+// Movement-shooter footage is about as hostile as encoding gets, so the H.264
+// floor sits above the usual 0.05 rule of thumb. AV1 holds up at roughly
+// 30-40% fewer bits; its floor is a starting point to tune by eye.
+export const MIN_BPP = { avc: 0.065, av1: 0.04 };
 
 // Container overhead + rate-control overshoot. Aim 5% under the hard cap.
 export const BUDGET_MARGIN = 0.95;
@@ -30,8 +31,11 @@ const even = (x) => Math.max(2, Math.round(x / 2) * 2);
  * @param {boolean} p.allowFpsDrop
  * @param {boolean} [p.lockResolution]  hold maxHeight (capped at source) and let
  *   the bitrate thin out instead of walking down the ladder
+ * @param {'avc' | 'av1'} [p.codec]  output codec, default 'avc'
  */
 export function planEncode(p) {
+  const codec = p.codec ?? 'avc';
+  const minBpp = MIN_BPP[codec];
   const targetBytes = Math.floor(p.targetMB * MB);
   const budgetBytes = Math.floor(targetBytes * BUDGET_MARGIN);
   const audioKbps = p.hasAudio ? p.audioKbps : 0;
@@ -50,7 +54,7 @@ export function planEncode(p) {
   for (;;) {
     const width = even((p.srcW * height) / p.srcH);
     const bpp = (videoKbps * 1000) / (width * height * fps);
-    if (bpp >= MIN_BPP) break;
+    if (bpp >= minBpp) break;
     if (p.allowFpsDrop && !droppedFps && fps > 45 && (height <= 720 || p.lockResolution)) {
       // At 720p and below the resolution ladder costs more than the
       // framerate does; halve fps once, then keep descending. With the
@@ -68,7 +72,7 @@ export function planEncode(p) {
   const width = even((p.srcW * height) / p.srcH);
   const bpp = (videoKbps * 1000) / (width * height * fps);
 
-  return { targetBytes, videoKbps, audioKbps, width, height, fps, bpp, belowFloor: bpp < MIN_BPP };
+  return { codec, targetBytes, videoKbps, audioKbps, width, height, fps, bpp, belowFloor: bpp < minBpp };
 }
 
 export const formatMB = (bytes) => `${(bytes / MB).toFixed(1)} MB`;

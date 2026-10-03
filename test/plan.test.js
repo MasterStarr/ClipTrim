@@ -30,6 +30,13 @@ test('thin budget steps down the ladder before touching fps', () => {
   assert.equal(p.fps, 60);
 });
 
+test('AV1 needs fewer bits per pixel, so it holds a higher resolution', () => {
+  const p = planEncode({ ...base, duration: 30, maxHeight: 1080, codec: 'av1' });
+  assert.equal(p.codec, 'av1');
+  assert.equal(p.height, 720); // H.264 drops to 600p on the same budget
+  assert.equal(p.belowFloor, false);
+});
+
 test('allowFpsDrop halves fps at 720p instead', () => {
   const p = planEncode({ ...base, duration: 30, allowFpsDrop: true });
   assert.equal(p.height, 720);
