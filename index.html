@@ -68,9 +68,10 @@
             MB <input id="custom-mb" type="number" min="1" max="500" step="0.5" value="20" />
           </label>
           <label>
-            Max resolution
+            <span id="res-label">Max resolution</span>
             <select id="max-height">
               <option value="4320">Source</option>
+              <option value="1440">1440p</option>
               <option value="1080">1080p</option>
               <option value="720" selected>720p</option>
               <option value="480">480p</option>
@@ -91,6 +92,9 @@
               <option value="64">64 kbps</option>
               <option value="0">None</option>
             </select>
+          </label>
+          <label class="check" title="Keep exactly this resolution (never upscaling past the source) and lower the bitrate to fit, instead of dropping resolution when the budget is tight">
+            <input type="checkbox" id="lock-res" /> Lock resolution
           </label>
           <label class="check" title="When the budget is tight, halve the framerate before dropping resolution further">
             <input type="checkbox" id="fps-drop" /> Allow FPS drop

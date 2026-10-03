@@ -28,6 +28,8 @@ const even = (x) => Math.max(2, Math.round(x / 2) * 2);
  * @param {number} p.maxFps
  * @param {number} p.audioKbps  0 strips audio
  * @param {boolean} p.allowFpsDrop
+ * @param {boolean} [p.lockResolution]  hold maxHeight (capped at source) and let
+ *   the bitrate thin out instead of walking down the ladder
  */
 export function planEncode(p) {
   const targetBytes = Math.floor(p.targetMB * MB);
@@ -49,21 +51,24 @@ export function planEncode(p) {
     const width = even((p.srcW * height) / p.srcH);
     const bpp = (videoKbps * 1000) / (width * height * fps);
     if (bpp >= MIN_BPP) break;
-    if (p.allowFpsDrop && !droppedFps && fps > 45 && height <= 720) {
+    if (p.allowFpsDrop && !droppedFps && fps > 45 && (height <= 720 || p.lockResolution)) {
       // At 720p and below the resolution ladder costs more than the
-      // framerate does; halve fps once, then keep descending.
+      // framerate does; halve fps once, then keep descending. With the
+      // resolution locked, the fps drop is the only lever left.
       fps /= 2;
       droppedFps = true;
       continue;
     }
+    if (p.lockResolution) break;
     const next = LADDER.find((h) => h < height);
     if (!next) break;
     height = next;
   }
   height = even(height);
   const width = even((p.srcW * height) / p.srcH);
+  const bpp = (videoKbps * 1000) / (width * height * fps);
 
-  return { targetBytes, videoKbps, audioKbps, width, height, fps };
+  return { targetBytes, videoKbps, audioKbps, width, height, fps, bpp, belowFloor: bpp < MIN_BPP };
 }
 
 export const formatMB = (bytes) => `${(bytes / MB).toFixed(1)} MB`;

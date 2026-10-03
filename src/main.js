@@ -31,6 +31,8 @@ const els = {
   maxFps: $('#max-fps'),
   audio: $('#audio'),
   fpsDrop: $('#fps-drop'),
+  lockRes: $('#lock-res'),
+  resLabel: $('#res-label'),
   allowCopy: $('#allow-copy'),
   plan: $('#plan'),
   export: $('#export'),
@@ -227,9 +229,12 @@ els.grab.addEventListener('click', () => {
 
 // --- settings + plan -------------------------------------------------------
 
-for (const el of [els.target, els.customMb, els.maxHeight, els.maxFps, els.audio, els.fpsDrop]) {
+for (const el of [els.target, els.customMb, els.maxHeight, els.maxFps, els.audio, els.fpsDrop, els.lockRes]) {
   el.addEventListener('change', render);
 }
+els.lockRes.addEventListener('change', () => {
+  els.resLabel.textContent = els.lockRes.checked ? 'Resolution' : 'Max resolution';
+});
 els.target.addEventListener('change', () => {
   els.customWrap.hidden = els.target.value !== 'custom';
 });
@@ -251,6 +256,7 @@ function currentPlan() {
     maxFps: Number(els.maxFps.value),
     audioKbps: Number(els.audio.value),
     allowFpsDrop: els.fpsDrop.checked,
+    lockResolution: els.lockRes.checked,
   });
 }
 
@@ -273,12 +279,13 @@ function render() {
     return;
   }
   const { info } = state;
-  els.plan.className = 'plan';
+  els.plan.className = plan.belowFloor ? 'plan warn' : 'plan';
   els.plan.textContent =
     `${info.width}x${info.height}@${Math.round(info.fps)} → ${plan.width}x${plan.height}@${Math.round(plan.fps)}` +
     ` · ${plan.videoKbps.toLocaleString()} kbps video` +
     (plan.audioKbps ? ` + ${plan.audioKbps} kbps audio` : ', no audio') +
-    ` · ${fmtTime(state.end - state.start)}`;
+    ` · ${fmtTime(state.end - state.start)}` +
+    (plan.belowFloor ? ' · low bitrate for this resolution, expect blocky motion' : '');
   els.export.disabled = !!state.job;
 }
 

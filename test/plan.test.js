@@ -36,6 +36,26 @@ test('allowFpsDrop halves fps at 720p instead', () => {
   assert.equal(p.fps, 30);
 });
 
+test('lockResolution holds the height and thins the bitrate instead', () => {
+  const p = planEncode({ ...base, duration: 30, maxHeight: 1080, lockResolution: true });
+  assert.equal(p.height, 1080);
+  assert.equal(p.width, 1920);
+  assert.equal(p.fps, 60);
+  assert.equal(p.videoKbps, 2560);
+  assert.equal(p.belowFloor, true);
+});
+
+test('lockResolution still allows the opt-in fps drop, at any height', () => {
+  const p = planEncode({ ...base, duration: 30, maxHeight: 1080, lockResolution: true, allowFpsDrop: true });
+  assert.equal(p.height, 1080);
+  assert.equal(p.fps, 30);
+});
+
+test('lockResolution never upscales past the source', () => {
+  const p = planEncode({ ...base, srcW: 1280, srcH: 720, duration: 10, maxHeight: 1080, lockResolution: true });
+  assert.equal(p.height, 720);
+});
+
 test('never upscales past the source', () => {
   const p = planEncode({ ...base, srcW: 854, srcH: 480, duration: 5, maxHeight: 1080 });
   assert.equal(p.height, 480);

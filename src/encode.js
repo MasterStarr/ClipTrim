@@ -133,8 +133,10 @@ export function exportClip(file, info, trim, plan, { allowCopy, onProgress, onSt
     // undershoot. Keep the largest result that fits.
     let videoKbps = plan.videoKbps;
     let best = null;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      onStatus(attempt === 1 ? 'Encoding…' : `Encoding (pass ${attempt}, ${videoKbps} kbps)…`);
+    let prevSize = 0;
+    let reason = '';
+    for (let attempt = 1; attempt <= MAX_PASSES; attempt++) {
+      onStatus(attempt === 1 ? 'Encoding…' : `${reason}, re-encoding at ${videoKbps} kbps (pass ${attempt})…`);
       const res = await run({
         copy: false,
         video: {
@@ -143,7 +145,11 @@ export function exportClip(file, info, trim, plan, { allowCopy, onProgress, onSt
           height: plan.height,
           fit: 'fill',
           frameRate: plan.fps < info.fps - 0.5 ? plan.fps : undefined,
-          quality: new Quality({ bitrate: videoKbps * 1000, bitrateMode: 'constant' }),
+          // Not 'constant': Chrome's Windows hardware H.264 encoder pins CBR
+          // output around 1.2 Mbps at 720p whatever bitrate is asked for,
+          // while VBR tracks the request (undershooting a bit, which the
+          // passes below correct).
+          quality: new Quality({ bitrate: videoKbps * 1000, bitrateMode: 'variable' }),
         },
         audio:
           plan.audioKbps > 0
@@ -156,14 +162,14 @@ export function exportClip(file, info, trim, plan, { allowCopy, onProgress, onSt
 
       if (fits && size >= plan.targetBytes * 0.85) break;
       if (!fits && best) break; // a boost overshot; the earlier pass is the keeper
+      // The encoder hit its own ceiling (e.g. a software encoder's cap or an
+      // easy scene); more bitrate won't buy anything.
+      if (fits && size < prevSize * 1.05) break;
+      prevSize = size;
 
       const nextKbps = Math.floor(videoKbps * ((plan.targetBytes * 0.93) / size));
       if (nextKbps < 100) break;
-      onStatus(
-        fits
-          ? `Came in small at ${formatMB(size)}, re-encoding at ${nextKbps} kbps…`
-          : `Overshot at ${formatMB(size)}, re-encoding at ${nextKbps} kbps…`,
-      );
+      reason = fits ? `Came in small at ${formatMB(size)}` : `Overshot at ${formatMB(size)}`;
       videoKbps = nextKbps;
     }
 
@@ -180,6 +186,7 @@ export function exportClip(file, info, trim, plan, { allowCopy, onProgress, onSt
   };
 }
 
+const MAX_PASSES = 4;
 const even = (x) => Math.round(x / 2) * 2;
 const toBlob = (buffer) => new Blob([buffer], { type: 'video/mp4' });
 
