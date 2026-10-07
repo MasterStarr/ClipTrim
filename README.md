@@ -32,9 +32,9 @@ The choice is remembered per browser. To make AV1 the default on capable hardwar
 
 | Source codec | Chrome / Edge | Firefox | Safari |
 |---|---|---|---|
-| H.264 | ✅ | ✅ | ✅ |
+| H.264 | ✅ | ⚠️ single threaded | ✅ |
 | HEVC | ✅ with a GPU that decodes HEVC | ⚠️ patchy | ✅ |
-| AV1 | ✅ | ✅ | recent Apple hardware |
+| AV1 | ✅ | ❌ | recent Apple hardware |
 
 When the browser can't encode AAC natively (e.g. Firefox), a WASM AAC encoder (`@mediabunny/aac-encoder`, ~1 MB) is loaded on demand.
 
